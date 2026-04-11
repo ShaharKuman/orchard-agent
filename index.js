@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { processMessage } = require('./src/agent');
-const { sendMessage, parseIncoming } = require('./src/whatsapp');
+const { sendMessage, parseIncoming, downloadMedia } = require('./src/whatsapp');
 const config = require('./src/config');
 
 const app = express();
@@ -14,9 +14,9 @@ app.get('/', (req, res) => {
 
 app.post('/webhook/whatsapp', async (req, res) => {
   const incoming = parseIncoming(req.body);
-  const { from, messageBody } = incoming;
+  const { from, messageBody, mediaUrl, mediaContentType, numMedia } = incoming;
 
-  console.log(`📱 Message from ${from}: ${messageBody}`);
+  console.log(`📱 Message from ${from}: ${messageBody || '[media]'}`);
 
   const user = config.getUserByPhone(from);
   if (!user) {
@@ -27,9 +27,16 @@ app.post('/webhook/whatsapp', async (req, res) => {
   console.log(`👤 ${user.name} (${user.role})`);
 
   try {
-    if (!messageBody.trim()) return res.sendStatus(200);
+    if (!messageBody.trim() && numMedia === 0) return res.sendStatus(200);
 
-    const reply = await processMessage({ from, body: messageBody, user });
+    // Download media if present
+    let media = null;
+    if (numMedia > 0 && mediaUrl) {
+      console.log(`📎 Media detected: ${mediaContentType}`);
+      media = await downloadMedia(mediaUrl);
+    }
+
+    const reply = await processMessage({ from, body: messageBody, user, media, mediaContentType });
     await sendMessage(from, reply);
     console.log(`✅ Reply sent to ${user.name}`);
   } catch (error) {

@@ -30,6 +30,28 @@ function parseIncoming(body) {
   };
 }
 
+// Download media from Twilio (requires Basic Auth — Twilio media URLs are protected)
+async function downloadMedia(mediaUrl) {
+  const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
+  const credentials = Buffer.from(
+    `${config.twilio.accountSid}:${config.twilio.authToken}`
+  ).toString('base64');
+
+  const response = await fetch(mediaUrl, {
+    headers: { Authorization: `Basic ${credentials}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to download media: ${response.status} ${response.statusText}`);
+  }
+
+  const contentType = response.headers.get('content-type') || 'application/octet-stream';
+  const buffer = await response.buffer();
+  const base64 = buffer.toString('base64');
+
+  return { base64, contentType };
+}
+
 // Generate TwiML response (empty - we reply async)
 function twimlResponse() {
   const MessagingResponse = twilio.twiml.MessagingResponse;
@@ -37,4 +59,4 @@ function twimlResponse() {
   return twiml.toString();
 }
 
-module.exports = { sendMessage, parseIncoming, twimlResponse };
+module.exports = { sendMessage, parseIncoming, twimlResponse, downloadMedia };
