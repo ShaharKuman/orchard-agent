@@ -97,11 +97,9 @@ const WEB_SEARCH_TOOL = {
 async function processMessage({ from, body, user }) {
   const systemPrompt = user.role === 'source' ? AVIK_SYSTEM_PROMPT : MANAGER_SYSTEM_PROMPT;
 
-  await db.saveMessage({ from, role: 'user', content: body });
-
   const history = await db.getConversationHistory(from, 20);
-  const messages = history.length > 0 ? history : [{ role: 'user', content: body }];
-
+  const messages = [...history, { role: 'user', content: body }];
+  
   try {
     // First call - may use web search tool
     const response = await anthropic.messages.create({
@@ -114,48 +112,33 @@ async function processMessage({ from, body, user }) {
 
     let fullResponse = '';
 
-    // Handle tool use loop
-    if (response.stop_reason === 'tool_use') {
-      // Extract tool use blocks
-      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
-      const textBlocks = response.content.filter(b => b.type === 'text');
+    // Handle built-in web search: Anthropic runs the search internally.
+    // We just keep calling the API with the updated conversation until
+    // Claude stops searching and gives a final answer.
+    let currentResponse = response;
 
-      console.log(`🔍 Web search triggered: ${toolUseBlocks.map(t => t.input?.query).join(', ')}`);
+    while (currentResponse.stop_reason === 'tool_use') {
+      console.log(`🔍 Web search triggered`);
 
-      // Continue with tool results
       const continueMessages = [
         ...messages,
-        { role: 'assistant', content: response.content },
-        {
-          role: 'user',
-          content: toolUseBlocks.map(toolUse => ({
-            type: 'tool_result',
-            tool_use_id: toolUse.id,
-            content: toolUse.output || '',
-          })),
-        },
+        { role: 'assistant', content: currentResponse.content },
       ];
 
-      const finalResponse = await anthropic.messages.create({
+      currentResponse = await anthropic.messages.create({
         model: config.anthropic.model,
         max_tokens: 1024,
         system: systemPrompt,
         tools: [WEB_SEARCH_TOOL],
         messages: continueMessages,
       });
-
-      fullResponse = finalResponse.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('');
-
-    } else {
-      // No tool use - extract text directly
-      fullResponse = response.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('');
     }
+
+    fullResponse = currentResponse.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
 
     const replyText = extractReply(fullResponse);
 
@@ -172,6 +155,7 @@ async function processMessage({ from, body, user }) {
       console.log('Saved insight:', insight.topic);
     }
 
+    await db.saveMessage({ from, role: 'user', content: body });
     await db.saveMessage({ from, role: 'assistant', content: replyText });
 
     return replyText;
