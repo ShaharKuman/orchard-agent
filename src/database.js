@@ -72,11 +72,35 @@ async function getPendingRecords() {
   return data || [];
 }
 
+// Get all pending questions not yet asked
+async function getPendingQuestions() {
+  const { data, error } = await supabase
+    .from('pending_questions')
+    .select('*')
+    .eq('asked', false)
+    .order('created_at', { ascending: true });
+
+  if (error) console.error('DB getPendingQuestions error:', error);
+  return data || [];
+}
+
+// Mark a question as asked
+async function markQuestionAsked(id) {
+  const { error } = await supabase
+    .from('pending_questions')
+    .update({ asked: true })
+    .eq('id', id);
+
+  if (error) console.error('DB markQuestionAsked error:', error);
+}
+
 module.exports = {
   saveMessage,
   getConversationHistory,
   saveRecord,
   saveInsight,
   getPendingRecords,
+  getPendingQuestions,
+  markQuestionAsked,
   supabase,
 };

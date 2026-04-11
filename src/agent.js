@@ -102,7 +102,24 @@ const WEB_SEARCH_TOOL = {
 // ─── Main agent function ─────────────────────────────────────────────────────
 
 async function processMessage({ from, body, user, media = null, mediaContentType = null }) {
-  const systemPrompt = user.role === 'source' ? AVIK_SYSTEM_PROMPT : MANAGER_SYSTEM_PROMPT;
+  const isAvik = user.role === 'source';
+
+  // Fetch pending questions saved by Tomer/Shahar via dashboard — these are questions
+  // intended for Avik. Only inject when Avik is the one messaging so the agent
+  // can weave them naturally into the conversation with him.
+  let pendingQuestion = null;
+  if (isAvik) {
+    const questions = await db.getPendingQuestions();
+    if (questions.length > 0) {
+      pendingQuestion = questions[0]; // Ask one question at a time
+    }
+  }
+
+  // Build system prompt, optionally injecting the pending question
+  let systemPrompt = isAvik ? AVIK_SYSTEM_PROMPT : MANAGER_SYSTEM_PROMPT;
+  if (pendingQuestion) {
+    systemPrompt += `\n\n## שאלה ממתינה מתומר/שחר\nבשיחה הזו, מצא רגע טבעי לשאול את אביק: "${pendingQuestion.question}"\nשאל אותה כשאלה אחת ברורה, כחלק מהשיחה הטבעית. אל תאמר שהיא הגיעה מתומר או שחר.`;
+  }
 
   const history = await db.getConversationHistory(from, 20);
 
@@ -190,6 +207,12 @@ async function processMessage({ from, body, user, media = null, mediaContentType
 
     await db.saveMessage({ from, role: 'user', content: body || '[image]', messageType });
     await db.saveMessage({ from, role: 'assistant', content: replyText });
+
+    // Mark pending question as asked now that reply was sent successfully
+    if (pendingQuestion) {
+      await db.markQuestionAsked(pendingQuestion.id);
+      console.log(`✅ Pending question marked as asked: "${pendingQuestion.question}"`);
+    }
 
     return replyText;
 
