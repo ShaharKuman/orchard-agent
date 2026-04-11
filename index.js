@@ -40,5 +40,4 @@ app.post('/webhook/whatsapp', async (req, res) => {
   res.sendStatus(200);
 });
 
-const PORT = config.port;
-app.listen(PORT, () => console.log(`🌿 OrchardAgent running on port ${PORT}`));
+module.exports = app;
