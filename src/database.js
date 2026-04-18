@@ -37,7 +37,7 @@ async function getConversationHistory(phone, limit = 20) {
     .eq('from_phone', phone)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   // No messages or last message was too long ago — fresh session
   if (!lastMsg || lastMsg.created_at < sessionCutoff) {
@@ -172,7 +172,7 @@ async function saveOperation({ operation, plotIds, materials, messageId, source 
     .single();
 
   if (opError) {
-    console.error('DB saveOperation error:', opError);
+    console.error('DB saveOperation error (full):', JSON.stringify(opError));
     return null;
   }
 
