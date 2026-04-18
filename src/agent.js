@@ -38,7 +38,8 @@ const AVIK_RULES = `אתה OrchardAgent - סוכן AI שתפקידו לשמר א
 אל תשתף את תוצאות החיפוש עם אביק — שמור אותן לדשבורד בלבד.
 
 ## חילוץ פעולה קונקרטית
-כשיש מידע על פעולה שבוצעה בפרדס, הוסף בסוף התשובה שלך:
+כשיש מידע על פעולה שבוצעה בפרדס, הוסף בסוף התשובה שלך — אחרי כל הטקסט — את הבלוק הבא.
+חשוב: הבלוק חייב להיות בדיוק בפורמט הזה, ללא כוכביות, ללא עיצוב, ללא שינויים:
 [RECORD]
 סוג: (ריסוס / דישון / השקיה / גיזום / קטיף / דילול / טיפול_קרקע / בדיקה / ייעוץ / אחר)
 עונה: (שנת הקטיף — לדוגמה 2025)
@@ -62,7 +63,7 @@ const AVIK_RULES = `אתה OrchardAgent - סוכן AI שתפקידו לשמר א
 אפשר לכלול מספר [RECORD] נפרדים אם יש מספר פעולות.
 
 ## חילוץ ידע כללי
-כשאביק מספר על שיטת עבודה כללית, נורמה, או כלל אצבע (לא פעולה ספציפית), הוסף:
+כשאביק מספר על שיטת עבודה כללית, נורמה, או כלל אצבע (לא פעולה ספציפית), הוסף בסוף התשובה — ללא כוכביות, ללא עיצוב:
 [CONCEPT]
 קטגוריה: (השקיה / ריסוס / דישון / גיזום / קטיף / אחר)
 נושא: (נושא קצר וברור — לדוגמה "כמות השקיה קיצית")
@@ -73,7 +74,7 @@ const AVIK_RULES = `אתה OrchardAgent - סוכן AI שתפקידו לשמר א
 [/CONCEPT]
 
 ## תיקון נתונים קיימים
-כשאביק מתקן מידע קודם, הוסף:
+כשאביק מתקן מידע קודם, הוסף בסוף התשובה — ללא כוכביות, ללא עיצוב:
 [UPDATE]
 טבלה: (operations / plots / suppliers / knowledge_concepts)
 מזהה: (המזהה המספרי של הרשומה)
@@ -247,6 +248,7 @@ async function processMessage({ from, body, user, media = null, mediaContentType
 
     // Extract and save operations
     const operations = extractOperations(fullResponse);
+    console.log(`📦 Extracted ${operations.length} operation(s), ${extractConcepts(fullResponse).length} concept(s)`);
     for (const op of operations) {
       const supplierId = await db.findSupplierByName(op.supplier);
       await db.saveOperation({
@@ -313,10 +315,10 @@ async function processMessage({ from, body, user, media = null, mediaContentType
 
 function extractReply(text) {
   return text
-    .replace(/\[RECORD\][\s\S]*?\[\/RECORD\]/g, '')
-    .replace(/\[CONCEPT\][\s\S]*?\[\/CONCEPT\]/g, '')
-    .replace(/\[UPDATE\][\s\S]*?\[\/UPDATE\]/g, '')
-    .replace(/\[INSIGHT\][\s\S]*?\[\/INSIGHT\]/g, '')
+    .replace(/\*?\[RECORD\]\*?[\s\S]*?\*?\[\/RECORD\]\*?/g, '')
+    .replace(/\*?\[CONCEPT\]\*?[\s\S]*?\*?\[\/CONCEPT\]\*?/g, '')
+    .replace(/\*?\[UPDATE\]\*?[\s\S]*?\*?\[\/UPDATE\]\*?/g, '')
+    .replace(/\*?\[INSIGHT\]\*?[\s\S]*?\*?\[\/INSIGHT\]\*?/g, '')
     .trim();
 }
 
@@ -363,7 +365,7 @@ function parseMaterials(block) {
 
 function extractOperations(text) {
   const ops = [];
-  const regex = /\[RECORD\]([\s\S]*?)\[\/RECORD\]/g;
+  const regex = /\*?\[RECORD\]\*?([\s\S]*?)\*?\[\/RECORD\]\*?/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     const block = parseBlock(match[1]);
@@ -402,7 +404,7 @@ function extractOperations(text) {
 
 function extractConcepts(text) {
   const concepts = [];
-  const regex = /\[CONCEPT\]([\s\S]*?)\[\/CONCEPT\]/g;
+  const regex = /\*?\[CONCEPT\]\*?([\s\S]*?)\*?\[\/CONCEPT\]\*?/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     const block = parseBlock(match[1]);
@@ -427,7 +429,7 @@ function extractConcepts(text) {
 
 function extractUpdates(text) {
   const updates = [];
-  const regex = /\[UPDATE\]([\s\S]*?)\[\/UPDATE\]/g;
+  const regex = /\*?\[UPDATE\]\*?([\s\S]*?)\*?\[\/UPDATE\]\*?/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     const block = parseBlock(match[1]);
@@ -445,7 +447,7 @@ function extractUpdates(text) {
 
 function extractInsights(text) {
   const insights = [];
-  const regex = /\[INSIGHT\]([\s\S]*?)\[\/INSIGHT\]/g;
+  const regex = /\*?\[INSIGHT\]\*?([\s\S]*?)\*?\[\/INSIGHT\]\*?/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     const block = parseBlock(match[1]);
