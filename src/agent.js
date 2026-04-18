@@ -4,63 +4,83 @@ const db = require('./database');
 
 const anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
 
-// ─── System Prompts ──────────────────────────────────────────────────────────
+// ─── STATIC SYSTEM PROMPT RULES ──────────────────────────────────────────────
+// Orchard facts (plots, suppliers) are injected dynamically from DB.
+// Only behavioral rules live here.
 
-const AVIK_SYSTEM_PROMPT = `אתה OrchardAgent - סוכן AI שתפקידו לשמר את הידע החקלאי של אביק לב, חקלאי מנוסה המגדל מנדרינות בפרדסים משפחתיים בישראל.
+const AVIK_RULES = `אתה OrchardAgent - סוכן AI שתפקידו לשמר את הידע החקלאי של אביק לב, חקלאי מנוסה המגדל מנדרינות בפרדסים משפחתיים בישראל.
 
 ## תפקידך
 לנהל שיחות טבעיות עם אביק בוואטסאפ, לחלץ ממנו ידע חקלאי עשיר, ולאחסן אותו בצורה מובנית עבור בני משפחתו.
 אתה מדבר תמיד בעברית. אתה סבלני, מכבד, ומעוניין אמיתית. אתה לא רובוט - אתה שיחה עם מישהו שמכבד את הניסיון של אביק.
 
-## מידע על הפרדס
-- 6 חלקות, סה"כ 22.5 דונם, זני מנדרינות אור ואורה
-- חלקה 1: ב' עליון - 5 דונם - זן אור (קבוצה א', סמוכה לחלקה 2)
-- חלקה 2: ב' תחתון - 5 דונם - זן אורה+אור מעורב (קבוצה א', טיפולים נפרדים לפי זן)
-- חלקה 3: אשכוליות - 6.5 דונם - זן אור (עצמאית, לא סמוכה לאחרות)
-- חלקה 4: אפרסמון - 2.5 דונם - זן אור (קבוצה ב', סמוכות 4+5+6)
-- חלקה 5: מורקוט - 2.5 דונם - זן אור (קבוצה ב')
-- חלקה 6: הום תומר - 1 דונם - זן אור (קבוצה ב')
-
-## ספקים ידועים
-- נדב מלר קדרון: ריסוס, 0505247243
-- יאיר ארנר: ייעוץ מקצועי, 0528422555
-- צביקה כהן: מים, 0525268883
-- מטיב כימיקלים: דשן
-
 ## כללי שיחה
 - שאלה אחת ברורה בכל הודעה - לא להציף
 - להראות עניין אמיתי: "מעניין מאוד, ספר לי עוד על..."
-- כשמזכיר פעולה - לשאול: מה בדיוק? מתי? על אילו חלקות? ממי קונים? כמה עולה?
+- כשמזכיר פעולה - לשאול בעדינות: מה בדיוק? מתי? על אילו חלקות? ממי קונים? כמה עולה?
 - לא להגיד לאביק שיש שיטה טובה יותר
 - לא לתקן אותו - לא ישיר ולא עקיף
 - לא לשאול יותר משאלה אחת בהודעה
-
-## שימוש בחיפוש ברשת
-יש לך כלי חיפוש ברשת. השתמש בו כאשר:
-- אביק מזכיר חומר ריסוס או דשן - חפש מידע על הריכוז המומלץ
-- אביק מזכיר מחלה או מזיק - חפש פרקטיקות טיפול
-- רוצה להשוות שיטת אביק לפרקטיקה מקובלת בענף
-אל תשתף את תוצאות החיפוש עם אביק - שמור אותן לדשבורד בלבד.
+- אם חסר מידע בפעולה — שאל עליו בשיחה הבאה, בצורה טבעית
 
 ## קבלת תמונות
 אביק עשוי לשלוח תמונות מסוגים שונים:
-- תמונה של בעיה בעץ או בפרי - תאר מה אתה רואה, שאל שאלה אחת על ההקשר
-- צילום מסך של מסמך, חשבונית או הוראות - חלץ את המידע הרלוונטי
-- תמונה של פעולה שבוצעה בפרדס - התייחס אליה כמו הודעת טקסט עם תוכן ויזואלי
+- תמונה של בעיה בעץ או בפרי — תאר מה אתה רואה, שאל שאלה אחת על ההקשר
+- צילום מסך של מסמך, חשבונית או הוראות — חלץ את המידע הרלוונטי
+- תמונה של פעולה שבוצעה בפרדס — התייחס אליה כמו הודעת טקסט עם תוכן ויזואלי
 תמיד ציין שראית את התמונה ותאר בקצרה מה זיהית לפני שאתה שואל.
 
-## חילוץ נתונים
-כשיש מספיק מידע על פעולה, הוסף בסוף התשובה שלך:
+## שימוש בחיפוש ברשת
+יש לך כלי חיפוש ברשת. השתמש בו כאשר:
+- אביק מזכיר חומר ריסוס או דשן — חפש מידע על הריכוז המומלץ
+- אביק מזכיר מחלה או מזיק — חפש פרקטיקות טיפול
+- רוצה להשוות שיטת אביק לפרקטיקה מקובלת בענף
+אל תשתף את תוצאות החיפוש עם אביק — שמור אותן לדשבורד בלבד.
+
+## חילוץ פעולה קונקרטית
+כשיש מידע על פעולה שבוצעה בפרדס, הוסף בסוף התשובה שלך:
 [RECORD]
-פעולה: ...
-תזמון: ...
-חלקה: ...
-זן: ...
-חומרים: ...
-ספק: ...
-עלות: ...
-ניואנסים: ...
+סוג: (ריסוס / דישון / השקיה / גיזום / קטיף / דילול / טיפול_קרקע / בדיקה / ייעוץ / אחר)
+עונה: (שנת הקטיף — לדוגמה 2025)
+תאריך: (אם ידוע — YYYY-MM-DD או תיאור כמו "אפריל 2025")
+חלקות: (מספרי חלקות מופרדים בפסיק — לדוגמה 1,2 — או "הכל")
+זן: (אור / אורה / הכל)
+מבצע: (מי ביצע — אביק / שם קבלן)
+ספק: (שם הספק אם רלוונטי)
+עלות_כוללת: (מספר בלבד, בשקלים)
+עלות_לדונם: (מספר בלבד, בשקלים)
+חומר_1_שם: (שם המוצר)
+חומר_1_כמות: (מספר)
+חומר_1_יחידה: (סמ"ק/דונם / ק"ג/דונם / ל'/דונם וכו')
+חומר_1_ריכוז: (אם רלוונטי)
+חומר_2_שם: (אם יש חומר נוסף)
+חומר_2_כמות:
+חומר_2_יחידה:
+ניואנסים: (כל מידע נוסף חשוב)
 [/RECORD]
+השאר שדות ריקים אם המידע לא ידוע — אל תמציא.
+אפשר לכלול מספר [RECORD] נפרדים אם יש מספר פעולות.
+
+## חילוץ ידע כללי
+כשאביק מספר על שיטת עבודה כללית, נורמה, או כלל אצבע (לא פעולה ספציפית), הוסף:
+[CONCEPT]
+קטגוריה: (השקיה / ריסוס / דישון / גיזום / קטיף / אחר)
+נושא: (נושא קצר וברור — לדוגמה "כמות השקיה קיצית")
+תוכן: (מה שאביק אמר, בעברית)
+חלקות: (אם ספציפי לחלקות מסוימות, אחרת השאר ריק)
+זן: (אם ספציפי לזן מסוים)
+תקף_מ: (שנה אם ידועה)
+[/CONCEPT]
+
+## תיקון נתונים קיימים
+כשאביק מתקן מידע קודם, הוסף:
+[UPDATE]
+טבלה: (operations / plots / suppliers / knowledge_concepts)
+מזהה: (המזהה המספרי של הרשומה)
+שדה: (שם השדה באנגלית — לדוגמה cost_total)
+ערך_חדש: (הערך החדש)
+סיבה: (הסבר קצר)
+[/UPDATE]
 
 ## תובנות למשפחה
 אם מצאת בחיפוש שיטה שונה מאביק, הוסף:
@@ -71,73 +91,108 @@ const AVIK_SYSTEM_PROMPT = `אתה OrchardAgent - סוכן AI שתפקידו ל�
 מקור: ...
 [/INSIGHT]`;
 
-const MANAGER_SYSTEM_PROMPT = `אתה OrchardAgent - עוזר לתומר ושחר לב לנהל את פרויקט שימור הידע החקלאי של אביק (סבא).
+const MANAGER_RULES = `אתה OrchardAgent - עוזר לתומר ושחר לב לנהל את פרויקט שימור הידע החקלאי של אביק (סבא).
 
 ## תפקידך עם תומר/שחר
 - לענות על שאלות על הפרדס ועל הפרויקט
 - לדווח על מה שנלמד מאביק עד כה
+- לקבל ממך מידע ועדכונים ולשמור אותם (בדיוק כמו שאביק מספק מידע)
 - לקבל הנחיות ושאלות המשך לשאול את אביק
 - לדווח על נתונים שממתינים לאישור
 - לחפש מידע ברשת על נושאים חקלאיים כשנשאל
 
-## מידע על הפרדס
-6 חלקות, 22.5 דונם, זני אור ואורה. ספקים: נדב מלר (ריסוס), יאיר ארנר (ייעוץ), צביקה כהן (מים).
-
 ## פקודות מיוחדות
-- "שאל את אביק: [שאלה]" - אמר שתעביר לאביק
-- "מה למדנו?" - סכם ידע שנאסף
-- "מה ממתין?" - פרט נתונים לאישור
-- "חפש: [נושא]" - חפש מידע חקלאי ברשת ודווח
+- "שאל את אביק: [שאלה]" — אמר שתעביר לאביק
+- "מה למדנו?" — סכם ידע שנאסף
+- "מה ממתין?" — פרט נתונים לאישור
+- "חפש: [נושא]" — חפש מידע חקלאי ברשת ודווח
 
-יש לך כלי חיפוש ברשת - השתמש בו בחופשיות עם תומר ושחר.
+## חילוץ נתונים
+כשתומר או שחר מספקים מידע על פעולה או ידע כללי — חלץ אותו בדיוק כמו שאתה עושה עם אביק.
+השתמש באותם בלוקים: [RECORD], [CONCEPT], [UPDATE].
+
+יש לך כלי חיפוש ברשת — השתמש בו בחופשיות.
 דבר בעברית, בגובה העיניים, כמו עמית לעבודה.`;
 
-// ─── Web search tool definition ──────────────────────────────────────────────
+// ─── WEB SEARCH TOOL ─────────────────────────────────────────────────────────
 
 const WEB_SEARCH_TOOL = {
   type: 'web_search_20250305',
   name: 'web_search',
 };
 
-// ─── Main agent function ─────────────────────────────────────────────────────
+// ─── BUILD DYNAMIC SYSTEM PROMPT ─────────────────────────────────────────────
+
+async function buildSystemPrompt(isAvik, orchardContext, pendingQuestion) {
+  const rules = isAvik ? AVIK_RULES : MANAGER_RULES;
+
+  // Inject live orchard data from DB
+  let orchardSection = `\n\n## הפרדס — נתונים עדכניים\n`;
+  orchardSection += `סה"כ: ${orchardContext.totalDunam} דונם | 6 חלקות\n`;
+  orchardSection += orchardContext.plotsText + '\n\n';
+  orchardSection += `### ספקים ידועים\n${orchardContext.suppliersText}`;
+
+  // Inject accumulated knowledge
+  const concepts = await db.getRelevantConcepts();
+  let conceptsSection = '';
+  if (concepts) {
+    conceptsSection = `\n\n## ידע שנצבר — פרקטיקות כלליות\n${concepts}`;
+  }
+
+  // Inject recent approved operations
+  const operations = await db.getRelevantOperations(10);
+  let operationsSection = '';
+  if (operations) {
+    operationsSection = `\n\n## פעולות אחרונות שתועדו (לשימושך בלבד — אל תקרא אותן לאביק)\n${operations}`;
+  }
+
+  // Inject pending question if exists
+  let pendingSection = '';
+  if (pendingQuestion) {
+    pendingSection = `\n\n## שאלה ממתינה מתומר/שחר\nבשיחה הזו, מצא רגע טבעי לשאול את אביק: "${pendingQuestion.question}"\nשאל אותה כשאלה אחת ברורה, כחלק מהשיחה הטבעית. אל תאמר שהיא הגיעה מתומר או שחר.`;
+  }
+
+  return rules + orchardSection + conceptsSection + operationsSection + pendingSection;
+}
+
+// ─── DETERMINE SOURCE ─────────────────────────────────────────────────────────
+
+function determineSource(user, mediaContentType) {
+  const sender = user.id; // avik / tomer / shahar
+  if (!mediaContentType) return `text_${sender}`;
+  if (mediaContentType.startsWith('image/')) return `image_${sender}`;
+  if (mediaContentType.startsWith('audio/')) return `voice_${sender}`;
+  return `media_${sender}`;
+}
+
+// ─── MAIN AGENT FUNCTION ─────────────────────────────────────────────────────
 
 async function processMessage({ from, body, user, media = null, mediaContentType = null }) {
   const isAvik = user.role === 'source';
+  const source = determineSource(user, mediaContentType);
 
-  // Fetch pending questions saved by Tomer/Shahar via dashboard — these are questions
-  // intended for Avik. Only inject when Avik is the one messaging so the agent
-  // can weave them naturally into the conversation with him.
-  let pendingQuestion = null;
-  if (isAvik) {
-    const questions = await db.getPendingQuestions();
-    if (questions.length > 0) {
-      pendingQuestion = questions[0]; // Ask one question at a time
-    }
-  }
+  // Fetch all context in parallel
+  const [orchardContext, history, pendingQuestions] = await Promise.all([
+    db.getOrchardContext(),
+    db.getConversationHistory(from, 20),
+    isAvik ? db.getPendingQuestions() : Promise.resolve([]),
+  ]);
 
-  // Build system prompt, optionally injecting the pending question
-  let systemPrompt = isAvik ? AVIK_SYSTEM_PROMPT : MANAGER_SYSTEM_PROMPT;
-  if (pendingQuestion) {
-    systemPrompt += `\n\n## שאלה ממתינה מתומר/שחר\nבשיחה הזו, מצא רגע טבעי לשאול את אביק: "${pendingQuestion.question}"\nשאל אותה כשאלה אחת ברורה, כחלק מהשיחה הטבעית. אל תאמר שהיא הגיעה מתומר או שחר.`;
-  }
+  const pendingQuestion = pendingQuestions.length > 0 ? pendingQuestions[0] : null;
 
-  const history = await db.getConversationHistory(from, 20);
+  // Build dynamic system prompt
+  const systemPrompt = await buildSystemPrompt(isAvik, orchardContext, pendingQuestion);
 
-  // Build the user message content — text only, or text + image
+  // Build user message content — text only, or text + image
   let userMessageContent;
   if (media && mediaContentType && mediaContentType.startsWith('image/')) {
     console.log(`🖼️ Processing image: ${mediaContentType}`);
     userMessageContent = [
       {
         type: 'image',
-        source: {
-          type: 'base64',
-          media_type: mediaContentType,
-          data: media.base64,
-        },
+        source: { type: 'base64', media_type: mediaContentType, data: media.base64 },
       },
     ];
-    // Append caption text if Avik wrote one alongside the image
     if (body && body.trim()) {
       userMessageContent.push({ type: 'text', text: body });
     }
@@ -152,66 +207,98 @@ async function processMessage({ from, body, user, media = null, mediaContentType
   const messages = [...history, { role: 'user', content: userMessageContent }];
 
   try {
-    // First call - may use web search tool
-    const response = await anthropic.messages.create({
+    // Call Claude — may trigger web search
+    let currentResponse = await anthropic.messages.create({
       model: config.anthropic.model,
-      max_tokens: 1024,
+      max_tokens: 1500,
       system: systemPrompt,
       tools: [WEB_SEARCH_TOOL],
       messages,
     });
 
-    let fullResponse = '';
-
-    // Handle built-in web search: Anthropic runs the search internally.
-    // We just keep calling the API with the updated conversation until
-    // Claude stops searching and gives a final answer.
-    let currentResponse = response;
-
+    // Handle built-in web search loop
     while (currentResponse.stop_reason === 'tool_use') {
       console.log(`🔍 Web search triggered`);
-
       const continueMessages = [
         ...messages,
         { role: 'assistant', content: currentResponse.content },
       ];
-
       currentResponse = await anthropic.messages.create({
         model: config.anthropic.model,
-        max_tokens: 1024,
+        max_tokens: 1500,
         system: systemPrompt,
         tools: [WEB_SEARCH_TOOL],
         messages: continueMessages,
       });
     }
 
-    fullResponse = currentResponse.content
+    const fullResponse = currentResponse.content
       .filter(b => b.type === 'text')
       .map(b => b.text)
       .join('');
 
     const replyText = extractReply(fullResponse);
 
-    // Save records and insights
-    const records = extractRecords(fullResponse);
-    for (const record of records) {
-      await db.saveRecord({ ...record, source_phone: from, approved: false });
-      console.log('Saved record:', record.action);
+    // Save user message first — get its ID for linking
+    const savedUserMsg = await db.saveMessage({
+      from, role: 'user', content: body || '[media]', messageType,
+    });
+    const messageId = savedUserMsg ? savedUserMsg.id : null;
+
+    // Extract and save operations
+    const operations = extractOperations(fullResponse);
+    for (const op of operations) {
+      const supplierId = await db.findSupplierByName(op.supplier);
+      await db.saveOperation({
+        operation: {
+          season_year:    op.season_year    || null,
+          operation_type: op.operation_type || 'אחר',
+          date_start:     op.date_start     || null,
+          timing_desc:    op.timing_desc    || null,
+          variety:        op.variety        || null,
+          executor:       op.executor       || null,
+          supplier_id:    supplierId,
+          cost_total:     op.cost_total     || null,
+          cost_per_dunam: op.cost_per_dunam || null,
+          notes:          op.notes          || null,
+        },
+        plotIds:   op.plot_ids || [],
+        materials: op.materials || [],
+        messageId,
+        source,
+      });
     }
 
+    // Extract and save concepts
+    const concepts = extractConcepts(fullResponse);
+    for (const concept of concepts) {
+      await db.saveConcept({
+        concept,
+        plotIds: concept.plot_ids || [],
+        messageId,
+        source,
+      });
+    }
+
+    // Extract and apply updates
+    const updates = extractUpdates(fullResponse);
+    for (const update of updates) {
+      await db.updateRecord({ ...update, source });
+    }
+
+    // Extract and save insights
     const insights = extractInsights(fullResponse);
     for (const insight of insights) {
       await db.saveInsight({ ...insight, source_phone: from });
-      console.log('Saved insight:', insight.topic);
     }
 
-    await db.saveMessage({ from, role: 'user', content: body || '[image]', messageType });
+    // Save assistant reply
     await db.saveMessage({ from, role: 'assistant', content: replyText });
 
-    // Mark pending question as asked now that reply was sent successfully
+    // Mark pending question as asked
     if (pendingQuestion) {
       await db.markQuestionAsked(pendingQuestion.id);
-      console.log(`✅ Pending question marked as asked: "${pendingQuestion.question}"`);
+      console.log(`✅ Pending question asked: "${pendingQuestion.question}"`);
     }
 
     return replyText;
@@ -222,24 +309,138 @@ async function processMessage({ from, body, user, media = null, mediaContentType
   }
 }
 
-// ─── Parsing helpers ─────────────────────────────────────────────────────────
+// ─── PARSING HELPERS ─────────────────────────────────────────────────────────
 
 function extractReply(text) {
   return text
     .replace(/\[RECORD\][\s\S]*?\[\/RECORD\]/g, '')
+    .replace(/\[CONCEPT\][\s\S]*?\[\/CONCEPT\]/g, '')
+    .replace(/\[UPDATE\][\s\S]*?\[\/UPDATE\]/g, '')
     .replace(/\[INSIGHT\][\s\S]*?\[\/INSIGHT\]/g, '')
     .trim();
 }
 
-function extractRecords(text) {
-  const records = [];
+function parseBlock(text) {
+  const result = {};
+  const lines = text.trim().split('\n');
+  for (const line of lines) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+    const rawKey = line.substring(0, colonIdx).trim();
+    const value  = line.substring(colonIdx + 1).trim();
+    if (value) result[rawKey] = value;
+  }
+  return result;
+}
+
+// Parse plot IDs from "1,2" or "הכל" (all 6 plots)
+function parsePlotIds(plotsStr, allPlots) {
+  if (!plotsStr) return [];
+  const str = plotsStr.trim();
+  if (str === 'הכל' || str === 'all') {
+    return allPlots.map(p => p.id);
+  }
+  return str.split(',')
+    .map(s => parseInt(s.trim()))
+    .filter(n => !isNaN(n) && n >= 1 && n <= 6);
+}
+
+// Parse materials from numbered fields: חומר_1_שם, חומר_1_כמות, etc.
+function parseMaterials(block) {
+  const materials = [];
+  let i = 1;
+  while (block[`חומר_${i}_שם`]) {
+    materials.push({
+      product_name:   block[`חומר_${i}_שם`]    || null,
+      quantity:       parseFloat(block[`חומר_${i}_כמות`]) || null,
+      unit:           block[`חומר_${i}_יחידה`]  || null,
+      dilution:       block[`חומר_${i}_ריכוז`]  || null,
+    });
+    i++;
+  }
+  return materials;
+}
+
+function extractOperations(text) {
+  const ops = [];
   const regex = /\[RECORD\]([\s\S]*?)\[\/RECORD\]/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
-    const record = parseBlock(match[1]);
-    if (record.action) records.push(record);
+    const block = parseBlock(match[1]);
+    if (!block['סוג']) continue;
+
+    // Parse date
+    let dateStart = null;
+    const dateStr = block['תאריך'];
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      dateStart = dateStr;
+    }
+
+    // Parse plot IDs (allPlots not available here — handled in processMessage)
+    const plotsStr = block['חלקות'] || '';
+    const plotIds = plotsStr === 'הכל'
+      ? [1,2,3,4,5,6]
+      : plotsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+    ops.push({
+      operation_type: block['סוג'],
+      season_year:    block['עונה']         || null,
+      date_start:     dateStart,
+      timing_desc:    block['תאריך'] && !dateStart ? block['תאריך'] : null,
+      variety:        block['זן']            || null,
+      executor:       block['מבצע']          || null,
+      supplier:       block['ספק']           || null,
+      cost_total:     parseFloat(block['עלות_כוללת'])  || null,
+      cost_per_dunam: parseFloat(block['עלות_לדונם'])  || null,
+      notes:          block['ניואנסים']      || null,
+      plot_ids:       plotIds,
+      materials:      parseMaterials(block),
+    });
   }
-  return records;
+  return ops;
+}
+
+function extractConcepts(text) {
+  const concepts = [];
+  const regex = /\[CONCEPT\]([\s\S]*?)\[\/CONCEPT\]/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const block = parseBlock(match[1]);
+    if (!block['קטגוריה'] || !block['נושא'] || !block['תוכן']) continue;
+
+    const plotsStr = block['חלקות'] || '';
+    const plotIds = plotsStr === 'הכל'
+      ? [1,2,3,4,5,6]
+      : plotsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+    concepts.push({
+      category:   block['קטגוריה'],
+      topic:      block['נושא'],
+      content:    block['תוכן'],
+      variety:    block['זן']       || null,
+      valid_from: block['תקף_מ']   || null,
+      plot_ids:   plotIds,
+    });
+  }
+  return concepts;
+}
+
+function extractUpdates(text) {
+  const updates = [];
+  const regex = /\[UPDATE\]([\s\S]*?)\[\/UPDATE\]/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const block = parseBlock(match[1]);
+    if (!block['טבלה'] || !block['מזהה'] || !block['שדה'] || !block['ערך_חדש']) continue;
+    updates.push({
+      table:    block['טבלה'],
+      id:       parseInt(block['מזהה']),
+      field:    block['שדה'],
+      newValue: block['ערך_חדש'],
+      reason:   block['סיבה'] || null,
+    });
+  }
+  return updates;
 }
 
 function extractInsights(text) {
@@ -247,30 +448,16 @@ function extractInsights(text) {
   const regex = /\[INSIGHT\]([\s\S]*?)\[\/INSIGHT\]/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
-    const insight = parseBlock(match[1]);
-    if (insight.topic) insights.push(insight);
+    const block = parseBlock(match[1]);
+    if (!block['נושא']) continue;
+    insights.push({
+      topic:       block['נושא'],
+      avik_method: block['שיטת אביק'] || null,
+      alternative: block['חלופה']     || null,
+      source:      block['מקור']      || null,
+    });
   }
   return insights;
-}
-
-function parseBlock(block) {
-  const result = {};
-  const lines = block.trim().split('\n');
-  for (const line of lines) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx === -1) continue;
-    const rawKey = line.substring(0, colonIdx).trim();
-    const value = line.substring(colonIdx + 1).trim();
-    const keyMap = {
-      'פעולה': 'action', 'תזמון': 'timing', 'חלקה': 'plot',
-      'זן': 'variety', 'חומרים': 'materials', 'ספק': 'supplier',
-      'עלות': 'cost', 'ניואנסים': 'nuances', 'נושא': 'topic',
-      'שיטת אביק': 'avik_method', 'חלופה': 'alternative', 'מקור': 'source',
-    };
-    const key = keyMap[rawKey] || rawKey;
-    if (value) result[key] = value;
-  }
-  return result;
 }
 
 module.exports = { processMessage };
