@@ -4,7 +4,7 @@ const db = require('./database');
 
 const anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
 
-// ─── STATIC SYSTEM PROMPT RULES ──────────────────────────────────────────────
+// -─── STATIC SYSTEM PROMPT RULES ──────────────────────────────────────────────
 // Orchard facts (plots, suppliers) are injected dynamically from DB.
 // Only behavioral rules live here.
 
