@@ -129,27 +129,65 @@ async function getRelevantOperations(limit = 10) {
 
   if (!data || data.length === 0) return '';
 
-  return data.map(op => {
-    const parts = [
-      `[מזהה: ${op.id}]`,
-      `סוג: ${op.operation_type}`,
-      op.season_year  ? `עונה: ${op.season_year}`       : null,
-      op.date_start   ? `תאריך: ${op.date_start}`        : null,
-      op.timing_desc  ? `תזמון: ${op.timing_desc}`       : null,
-      op.plot_names   ? `חלקות: ${op.plot_names}`        : null,
-      op.variety      ? `זן: ${op.variety}`              : null,
-      op.executor     ? `מבצע: ${op.executor}`           : null,
-      op.supplier_name? `ספק: ${op.supplier_name}`       : null,
-      op.cost_total   ? `עלות: ${op.cost_total} ₪`      : null,
-      op.notes        ? `הערות: ${op.notes}`             : null,
-    ].filter(Boolean);
-    return parts.join(' | ');
-  }).join('\n');
+  return data.map(op => formatOpLine(op, true)).join('\n');
+}
+
+// Fetch all pending (unapproved) operations for context injection
+async function getPendingOperations() {
+  const { data, error } = await supabase
+    .from('operations')
+    .select('id, operation_type, season_year, date_start, date_end, timing_desc, variety, executor, notes')
+    .eq('approved', false)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('DB getPendingOperations error:', error);
+    return '';
+  }
+
+  if (!data || data.length === 0) return '';
+
+  return data.map(op => formatOpLine(op, false)).join('\n');
+}
+
+function formatOpLine(op, approved) {
+  const parts = [
+    `[מזהה: ${op.id}]${approved ? '' : ' [ממתין לאישור]'}`,
+    `סוג: ${op.operation_type}`,
+    op.season_year  ? `עונה: ${op.season_year}`  : null,
+    op.date_start   ? `תאריך: ${op.date_start}`  : null,
+    op.timing_desc  ? `תזמון: ${op.timing_desc}` : null,
+    op.plot_names   ? `חלקות: ${op.plot_names}`  : null,
+    op.variety      ? `זן: ${op.variety}`         : null,
+    op.executor     ? `מבצע: ${op.executor}`      : null,
+    op.notes        ? `הערות: ${op.notes}`        : null,
+  ].filter(Boolean);
+  return parts.join(' | ');
 }
 
 // ─── SAVE OPERATIONS ─────────────────────────────────────────────────────────
 
 async function saveOperation({ operation, plotIds, materials, messageId, source }) {
+  // Deduplication: skip if same type + season already exists (pending or approved)
+  // with the same or no date (prevents re-recording from follow-up messages)
+  const dupQuery = supabase
+    .from('operations')
+    .select('id')
+    .eq('operation_type', operation.operation_type)
+    .eq('season_year', operation.season_year || '');
+
+  if (operation.date_start) {
+    dupQuery.eq('date_start', operation.date_start);
+  } else {
+    dupQuery.is('date_start', null);
+  }
+
+  const { data: existing } = await dupQuery.limit(1).maybeSingle();
+  if (existing) {
+    console.log(`⏭️  Duplicate operation skipped: ${operation.operation_type} season=${operation.season_year} date=${operation.date_start} (existing id=${existing.id})`);
+    return null;
+  }
+
   const { data: op, error: opError } = await supabase
     .from('operations')
     .insert([{
@@ -336,6 +374,7 @@ module.exports = {
   getOrchardContext,
   getRelevantConcepts,
   getRelevantOperations,
+  getPendingOperations,
   saveOperation,
   saveConcept,
   updateRecord,

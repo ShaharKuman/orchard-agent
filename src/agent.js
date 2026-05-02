@@ -17,7 +17,11 @@ const AVIK_RULES = `אתה OrchardAgent - סוכן AI שתפקידו לשמר א
 ## פורמט תשובות
 אתה מדבר בוואטסאפ — אל תשתמש במארקדאון (כוכביות, קווים תחתיים, כותרות). כתוב טקסט פשוט בלבד.
 כשאתה שומר פעולה, כתוב תחילה סיכום קצר בעברית של מה שתיעדת, ואז הוסף את בלוק ה-[RECORD].
-לדוגמה: "תיעדתי ריסוס אנטיו 2% באשכוליות ב-17/4, נדב מלר, עלות 1000 ש״ח. יש עוד פרטים להוסיף?"
+לדוגמה:
+תיעדתי ריסוס אנטיו 2% באשכוליות ב-17/4, נדב מלר, עלות 1000 ש״ח. יש עוד פרטים להוסיף?
+[RECORD]
+{"operation_type":"ריסוס","season_year":"2024","date_start":"2024-04-17","timing_desc":"","plots":"3","variety":"אשכולית","executor":"נדב מלר","supplier":"","cost_total":1000,"cost_per_dunam":null,"notes":"","materials":[{"product_name":"אנטיו","quantity":2,"unit":"%","dilution":""}]}
+[/RECORD]
 
 ## כללי שיחה
 - שאלה אחת ברורה בכל הודעה - לא להציף
@@ -43,17 +47,30 @@ const AVIK_RULES = `אתה OrchardAgent - סוכן AI שתפקידו לשמר א
 אל תשתף את תוצאות החיפוש עם אביק — שמור אותן לדשבורד בלבד.
 
 ## חילוץ פעולה קונקרטית
-כשיש מידע על פעולה שבוצעה בפרדס, הוסף בסוף התשובה שלך את הבלוק הבא בדיוק — ללא שינויים, ללא עיצוב, ללא כוכביות:
+צור [RECORD] רק כאשר אביק מתאר בפעם הראשונה פעולה שבוצעה בפרדס.
+לפני שאתה יוצר [RECORD] — בדוק את רשימת הפעולות הממתינות והמאושרות למעלה. אם הפעולה כבר מופיעה שם — אל תוסיף [RECORD] חדש.
+
+אל תצור [RECORD] כאשר:
+- אביק אומר "כן", "אכן", "נכון", "בדיוק" — זהו אישור, לא פעולה חדשה
+- אביק מסביר פרטים נוספים על פעולה שכבר תועדה
+- אביק עונה לשאלת הבהרה שלך על פעולה קיימת
+- אביק מתאר ידע כללי (שיטת עבודה, נורמה) — שם יש להשתמש ב-[CONCEPT]
+
+צור [RECORD] כאשר:
+- אביק מזכיר לראשונה פעולה חדשה (תרסיס, דישון, קטיף, חיגור וכו') שעוד אינה ברשימה
+- יש מידע ספציפי: מה בוצע, מתי, על אילו חלקות
+
 [RECORD]
-{"operation_type":"","season_year":"","date_start":"","timing_desc":"","plots":"","variety":"","executor":"","supplier":"","cost_total":null,"cost_per_dunam":null,"notes":"","materials":[{"product_name":"","quantity":null,"unit":"","dilution":""}]}
+{"operation_type":"","season_year":"","date_start":"","date_end":"","timing_desc":"","plots":"","variety":"","executor":"","supplier":"","cost_total":null,"cost_per_dunam":null,"notes":"","materials":[{"product_name":"","quantity":null,"unit":"","dilution":""}]}
 [/RECORD]
 
 מלא רק שדות שיש עליהם מידע. השאר שדות ריקים ("") או null אם לא ידוע.
-operation_type: ריסוס / דישון / השקיה / גיזום / קטיף / דילול / טיפול_קרקע / בדיקה / ייעוץ / אחר
+operation_type: ריסוס / דישון / השקיה / גיזום / קטיף / דילול / חיגור / טיפול_קרקע / בדיקה / ייעוץ / אחר
 plots: מספרי חלקות מופרדים בפסיק כגון "1,2" או "הכל"
 date_start: YYYY-MM-DD אם ידוע, אחרת השאר ריק ומלא timing_desc
+date_end: YYYY-MM-DD אם הפעולה נמשכה מספר ימים, אחרת השאר ריק
 materials: מערך של חומרים, כל אחד עם שם, כמות, יחידה וריכוז
-אפשר לכלול מספר בלוקי [RECORD] נפרדים אם יש מספר פעולות.
+אפשר לכלול מספר בלוקי [RECORD] נפרדים אם יש מספר פעולות שונות.
 
 ## חילוץ ידע כללי
 כשיש מידע על שיטת עבודה כללית, נורמה, או כלל אצבע (לא פעולה ספציפית), הוסף:
@@ -98,11 +115,12 @@ const MANAGER_RULES = `אתה OrchardAgent - עוזר לתומר ושחר לב �
 - "חפש: [נושא]" — חפש מידע חקלאי ברשת ודווח
 
 ## חילוץ נתונים
-כשתומר או שחר מספקים מידע על פעולה או ידע כללי — חלץ אותו בדיוק כמו שאתה עושה עם אביק.
+כשתומר או שחר מספקים מידע על פעולה חדשה שעוד אינה ברשימת הפעולות הקיימות — חלץ אותו.
+בדוק תמיד את רשימת הפעולות הממתינות והמאושרות לפני שאתה יוצר [RECORD] חדש. אל תשכפל פעולות.
 השתמש באותם בלוקי JSON — ללא כוכביות, ללא עיצוב, בדיוק בפורמט הזה:
 
 [RECORD]
-{"operation_type":"","season_year":"","date_start":"","timing_desc":"","plots":"","variety":"","executor":"","supplier":"","cost_total":null,"cost_per_dunam":null,"notes":"","materials":[{"product_name":"","quantity":null,"unit":"","dilution":""}]}
+{"operation_type":"","season_year":"","date_start":"","date_end":"","timing_desc":"","plots":"","variety":"","executor":"","supplier":"","cost_total":null,"cost_per_dunam":null,"notes":"","materials":[{"product_name":"","quantity":null,"unit":"","dilution":""}]}
 [/RECORD]
 
 [CONCEPT]
@@ -144,11 +162,16 @@ async function buildSystemPrompt(isAvik, orchardContext, pendingQuestion) {
     conceptsSection = `\n\n## ידע שנצבר — פרקטיקות כלליות\n${concepts}`;
   }
 
-  // Inject recent approved operations
-  const operations = await db.getRelevantOperations(10);
+  // Inject recent approved operations + all pending operations
+  const [approvedOps, pendingOps] = await Promise.all([
+    db.getRelevantOperations(10),
+    db.getPendingOperations(),
+  ]);
   let operationsSection = '';
-  if (operations) {
-    operationsSection = `\n\n## פעולות אחרונות שתועדו (לשימושך בלבד — אל תקרא אותן לאביק)\n${operations}`;
+  if (approvedOps || pendingOps) {
+    operationsSection = `\n\n## פעולות שתועדו (לשימושך בלבד — אל תקרא אותן לאביק)`;
+    if (approvedOps) operationsSection += `\n### מאושרות\n${approvedOps}`;
+    if (pendingOps)  operationsSection += `\n### ממתינות לאישור (כבר תועדו — אל תתעד שוב!)\n${pendingOps}`;
   }
 
   // Inject pending question if exists
@@ -252,7 +275,11 @@ async function processMessage({ from, body, user, media = null, mediaContentType
 
     // Extract and save operations
     const operations = extractOperations(fullResponse);
-    console.log(`📦 Extracted ${operations.length} operation(s), ${extractConcepts(fullResponse).length} concept(s)`);
+    const concepts = extractConcepts(fullResponse);
+    console.log(`📦 Extracted ${operations.length} operation(s), ${concepts.length} concept(s)`);
+    if (operations.length === 0 && concepts.length === 0 && fullResponse.includes('[RECORD]')) {
+      console.warn('⚠️  Response contained [RECORD] but no operations were parsed. Raw response:\n', fullResponse);
+    }
     for (const op of operations) {
       const supplierId = await db.findSupplierByName(op.supplier);
       await db.saveOperation({
@@ -260,6 +287,7 @@ async function processMessage({ from, body, user, media = null, mediaContentType
           season_year:    op.season_year    || null,
           operation_type: op.operation_type || 'אחר',
           date_start:     op.date_start     || null,
+          date_end:       op.date_end       || null,
           timing_desc:    op.timing_desc    || null,
           variety:        op.variety        || null,
           executor:       op.executor       || null,
@@ -276,7 +304,6 @@ async function processMessage({ from, body, user, media = null, mediaContentType
     }
 
     // Extract and save concepts
-    const concepts = extractConcepts(fullResponse);
     for (const concept of concepts) {
       await db.saveConcept({
         concept,
@@ -326,21 +353,27 @@ function extractReply(text) {
     .trim();
 }
 
-// Extract JSON from inside a block tag, handling markdown asterisks
+// Extract JSON from inside a block tag, handling markdown asterisks (0-2) and code fences
 function extractJsonBlocks(text, tag) {
   const results = [];
-  const regex = new RegExp(`\\*?\\[${tag}\\]\\*?([\\s\\S]*?)\\*?\\[\\/${tag}\\]\\*?`, 'g');
+  const regex = new RegExp(`\\*{0,2}\\[${tag}\\]\\*{0,2}([\\s\\S]*?)\\*{0,2}\\[\\/${tag}\\]\\*{0,2}`, 'g');
   let match;
   while ((match = regex.exec(text)) !== null) {
     const raw = match[1].trim();
-    // Strip any markdown formatting Claude might add around the JSON
-    const cleaned = raw.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+    const cleaned = raw
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/, '')
+      .replace(/```\s*$/, '')
+      .trim();
     try {
       const parsed = JSON.parse(cleaned);
       results.push(parsed);
     } catch (e) {
       console.error(`Failed to parse ${tag} JSON:`, cleaned, e.message);
     }
+  }
+  if (results.length === 0 && text.includes(`[${tag}]`)) {
+    console.warn(`⚠️  Found [${tag}] tag but failed to extract valid JSON`);
   }
   return results;
 }
@@ -359,6 +392,7 @@ function extractOperations(text) {
     operation_type: obj.operation_type || 'אחר',
     season_year:    obj.season_year    || null,
     date_start:     obj.date_start     || null,
+    date_end:       obj.date_end       || null,
     timing_desc:    obj.timing_desc    || null,
     variety:        obj.variety        || null,
     executor:       obj.executor       || null,
