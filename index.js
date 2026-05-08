@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { processMessage } = require('./src/agent');
+const { processMessage, initiateConversation } = require('./src/agent');
 const { sendMessage, parseIncoming, downloadMedia } = require('./src/whatsapp');
 const config = require('./src/config');
 
@@ -45,6 +45,21 @@ app.post('/webhook/whatsapp', async (req, res) => {
   }
 
   res.sendStatus(200);
+});
+
+app.post('/api/initiate', async (req, res) => {
+  if (req.headers['x-initiate-secret'] !== config.initiateSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { question, askedBy } = req.body;
+  if (!question?.trim()) return res.status(400).json({ error: 'question required' });
+  try {
+    const message = await initiateConversation({ question, askedBy });
+    res.json({ ok: true, message });
+  } catch (e) {
+    console.error('Initiate error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = app;

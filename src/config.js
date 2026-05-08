@@ -20,6 +20,7 @@ const config = {
     shahar: { phone: process.env.SHAHAR_PHONE, name: 'שחר',   role: 'manager' },
   },
   port: process.env.PORT || 3000,
+  initiateSecret: process.env.INITIATE_SECRET || 'orchard-initiate-secret',
 };
 
 // Resolve phone -> user
