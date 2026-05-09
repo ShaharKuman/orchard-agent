@@ -446,31 +446,12 @@ function extractInsights(text) {
 // Called when a manager triggers a new conversation to Avik from the dashboard.
 
 async function initiateConversation({ question, askedBy = 'מנהל' }) {
-  const orchardContext = await db.getOrchardContext();
-  const systemPrompt = await buildSystemPrompt(true, orchardContext, null);
-
-  const initiateInstruction = `אתה מתחיל שיחה חדשה עם אביק בוואטסאפ.
-${askedBy} רוצה לדעת יותר על הנושא הבא: "${question}"
-
-כתוב הודעת פתיחה אחת, קצרה וטבעית, שתפתח שיחה על הנושא הזה.
-שאלה אחת ברורה בלבד. אל תגלה שהנושא הגיע מ${askedBy}.`;
-
-  const response = await anthropic.messages.create({
-    model: config.anthropic.model,
-    max_tokens: 300,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: initiateInstruction }],
-  });
-
-  const fullText = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
-  const message = extractReply(fullText);
-
   const { sendMessage } = require('./whatsapp');
-  await sendMessage(config.users.avik.phone, message);
-  await db.saveMessage({ from: config.users.avik.phone, role: 'assistant', content: message, messageType: 'text' });
+  await sendMessage(config.users.avik.phone, question);
+  await db.saveMessage({ from: config.users.avik.phone, role: 'assistant', content: question, messageType: 'text' });
 
-  console.log(`📤 Initiated conversation for "${askedBy}": ${message.slice(0, 80)}...`);
-  return message;
+  console.log(`📤 Initiated conversation for "${askedBy}": ${question.slice(0, 80)}`);
+  return question;
 }
 
 module.exports = { processMessage, initiateConversation };
