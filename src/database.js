@@ -320,9 +320,10 @@ async function updateRecord({ table, id, field, newValue, reason, source }) {
 // ─── INSIGHTS ────────────────────────────────────────────────────────────────
 
 async function saveInsight(insight) {
+  const { source, ...row } = insight;  // 'source' column doesn't exist in insights table
   const { data, error } = await supabase
     .from('insights')
-    .insert([insight])
+    .insert([row])
     .select()
     .single();
 
